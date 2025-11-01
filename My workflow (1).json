@@ -1,0 +1,809 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_trends"
+            },
+            {
+              "name": "q",
+              "value": "AI Automation"
+            },
+            {
+              "name": "api_key",
+              "value": "814b52dae0818b9544fc526351ad5f1583a81dbc115ca7d84e6204925599194e"
+            },
+            {
+              "name": "data_type",
+              "value": "RELATED_QUERIES"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        -176
+      ],
+      "id": "e72b046c-87e2-4c1c-9609-bb77d4681a42",
+      "name": "Google Trends"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "q",
+              "value": "AI Automation"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "order",
+              "value": "viewCount"
+            },
+            {
+              "name": "maxResults",
+              "value": "5"
+            },
+            {
+              "name": "key",
+              "value": "AIzaSyBcuKff7DOtVnpvD6fmqDdWCZCdkApUAoo"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "cba7fcef-a07d-4522-a10a-abcd653f786b",
+      "name": "YouTube Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst data = JSON.parse(items[0]?.json?.data);\nconst rising = data?.related_queries?.rising || [];\nconst top = data?.related_queries?.top || [];\nconst combined = [...rising, ...top];\nconst result = combined.map((item) => ({ topic: item?.query }));\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -176
+      ],
+      "id": "900780db-b662-4cb3-b673-f5a6f6264402",
+      "name": "Clean Trends (Code)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all()[0]?.json?.items;\nconst topics = items.map((item) => ({ topic: item?.snippet?.title }));\n\nreturn topics;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        192
+      ],
+      "id": "32745145-4a8a-4e9a-bce6-98a5d9a39d8c",
+      "name": "Clean YouTube (Code)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "649260dc-a065-45de-8c4a-936d54b24d7a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        752,
+        0
+      ],
+      "id": "71f597d6-36f1-4479-9a16-d397fe4f68b8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "topic",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -192
+      ],
+      "id": "352ed230-5227-497d-8e93-a4fe2097adf3",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert content strategist for an AI automation company. I will give you a trending topic.\n\nYour task is to generate two creative prompts based on that topic:\n1. A prompt for an in-depth blog post.\n2. A prompt for a short, engaging video script.\n\nIMPORTANT: Only output a JSON object, with no other text. The JSON object must have two keys: \"blog_prompt\" and \"video_prompt\".\n\nHere is the topic: \"{{ $json.topic }}\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        -128
+      ],
+      "id": "d4c3a0fc-1f54-4aa3-bb2f-aedb1c488d8f",
+      "name": "Message a model (Gemini)",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nOiFn9u7o4fKfcW4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": "={{ $itemIndex * 3 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1152,
+        16
+      ],
+      "id": "23c6679c-4c44-4a13-b02a-0c29e3a7664e",
+      "name": "Wait",
+      "webhookId": "5724a0e3-661d-4ee0-bee4-bb5bcb067fb9"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8bee3c47-b992-4336-af72-5bf60bccf60c",
+              "name": "=topic",
+              "value": "={{ $('Remove Duplicates').all()[$itemIndex].json.topic }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1616,
+        16
+      ],
+      "id": "3a1dcab7-51ab-49f2-83ca-3d2b78818404",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ JSON.stringify($json.blog_prompt) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        48
+      ],
+      "id": "f07ff8d8-1a85-4e1e-9a68-3a11596374d6",
+      "name": "Generate Blog Post",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nOiFn9u7o4fKfcW4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = [];\nconst errors = [];\n\nitems.forEach((item, idx) => {\n  try {\n    const text = item.json.content.parts[0].text;\n    let jsonString = text.substring(\n      text.indexOf(\"```json\") + 7,\n      text.lastIndexOf(\"```\")\n    ).trim();\n\n    // Remove control characters except for standard whitespace\n    // This preserves most formatting but removes problematic invisible chars\n    jsonString = jsonString.replace(/[\\u0000-\\u001F\\u007F]/g, function(char){\n      // Allow tab (9), LF (10), CR (13)\n      return /[\\u0009\\u000A\\u000D]/.test(char) ? char : '';\n    });\n\n    const { blog_prompt, video_prompt } = JSON.parse(jsonString);\n    updatedItems.push({\n      topic: item.json.topic,\n      blog_prompt,\n      video_prompt,\n    });\n  } catch (e) {\n    errors.push({\n      itemIndex: idx,\n      error: e.message,\n      rawText: item.json.content.parts[0].text,\n    });\n  }\n});\n\n// Uncomment the following to debug errors, or use the line below to return both\n// return [{ json: { updatedItems, errors } }];\nreturn updatedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        -128
+      ],
+      "id": "8a174074-7bef-4f25-ad13-790d1c04f289",
+      "name": "Clean_Prompts",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2016,
+        -128
+      ],
+      "id": "b1a61f88-9849-4c3b-a035-5d3897941469",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2736,
+        288
+      ],
+      "id": "a5ee5254-3751-4836-9aa1-3dcca27b8d4f",
+      "name": "Wait1",
+      "webhookId": "1910d0cb-def9-4cb3-ab02-092603ecbdf1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b59b4a49-eeec-461c-8ce2-843a50db2d97",
+              "name": "=topic",
+              "value": "={{ $('Loop Over Items').item.json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "75ece01e-cdc3-4aa8-8eb8-3e3bd43be4bb",
+              "name": "=video_prompt",
+              "value": "={{ $('Loop Over Items').item.json.video_prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "24acfcf8-4b3e-451e-9dd8-0eaadbb4b5e3",
+              "name": "=blog_prompt",
+              "value": "={{ $('Loop Over Items').item.json.blog_prompt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2512,
+        208
+      ],
+      "id": "8ea6bfcb-e709-4795-8d96-4eb2cd5fd9ea",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2608,
+        -336
+      ],
+      "id": "717c0498-2693-4352-96b0-5bb4982a4986",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "modelId": {
+          "__rl": true,
+          "value": "models/veo-3.1-fast-generate-preview",
+          "mode": "list",
+          "cachedResultName": "models/veo-3.1-fast-generate-preview"
+        },
+        "prompt": "={{ $json.video_prompt }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        -192
+      ],
+      "id": "def0ad79-16c4-4960-8f05-6a61b9592928",
+      "name": "Generate a video",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nOiFn9u7o4fKfcW4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3296,
+        -192
+      ],
+      "id": "b4aa673b-bb9d-43bc-b8f9-c66b3da4aa2b",
+      "name": "Wait2",
+      "webhookId": "afa4bdb4-be69-4a61-801c-111b4dd66efa"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13112dc0-f76f-45ae-bd7b-069ae7759052",
+              "name": "=topic",
+              "value": "={{ $('Loop Over Items').item.json.topic }}",
+              "type": "string"
+            },
+            {
+              "id": "7588ad33-8173-469a-822c-b084f31aa7db",
+              "name": "=video_prompt",
+              "value": "={{ $('Loop Over Items').item.json.video_prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "47a39eab-9153-4519-b884-dd6702090352",
+              "name": "=blog_content",
+              "value": "={{ $('Loop Over Items').item.json.blog_content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3072,
+        -192
+      ],
+      "id": "c413db01-7672-49f8-a23e-175156724b56",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1V0ips-jn7WgqnurEJwy-NXsgfBUkpsQ8r85C728C0F0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V0ips-jn7WgqnurEJwy-NXsgfBUkpsQ8r85C728C0F0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Topic": "={{ $json.topic }}",
+            "Prompt": "={{ $json.video_prompt }}",
+            "Blog Content": "={{ $json.blog_content }}",
+            "Video Link": "={{ $json.video_data_field_name }}",
+            "Timestamp": "={{ $now.toFormat('dd/MM/yyyy HH:mm') }}",
+            "Status": "Pending Review"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Topic",
+              "displayName": "Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Prompt",
+              "displayName": "Prompt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Blog Content",
+              "displayName": "Blog Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Video Link",
+              "displayName": "Video Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3552,
+        -352
+      ],
+      "id": "e6b84ee6-aa19-4dec-a202-f0ee46887d71",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "G2i29oPz8ejtYrkG",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all 37 items from the loop's \"done\" output\nconst allItems = $input.all();\n\n// Process each item one by one\nconst results = allItems.map(item => {\n  \n  // The data from the loop is in item.json\n  const inputData = item.json; \n  \n  // 1. Get the original topic\n  const originalTopic = inputData.topic;\n\n  // 2. Get the original video_prompt\n  const video_prompt = inputData.video_prompt;\n  \n  // 3. Get the new blog post text\n  let newBlogContent = \"Error: Blog content not found.\";\n  if (inputData.content && inputData.content.parts && inputData.content.parts.length > 0) {\n    newBlogContent = inputData.content.parts[0].text;\n  }\n\n  // 4. Create the final, clean object\n  return {\n    topic: originalTopic || \"Error: Topic missing.\",\n    video_prompt: video_prompt || \"Error: Video prompt missing.\",\n    blog_content: newBlogContent\n  };\n});\n\n// Return the new array of clean items\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        -336
+      ],
+      "id": "c2fdcdb1-7beb-4adc-9043-5f4ca30eb884",
+      "name": "Clean_Prompts Video"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Trends": {
+      "main": [
+        [
+          {
+            "node": "Clean Trends (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Search": {
+      "main": [
+        [
+          {
+            "node": "Clean YouTube (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Trends (Code)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "YouTube Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean YouTube (Code)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Message a model (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Clean_Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean_Prompts": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Clean_Prompts Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Blog Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate a video": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean_Prompts Video": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aecfcf82-af14-4c9c-b02f-c54cc35104a9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "293c31183391074fdf4c4b62c9691a8fca1e18c43bf51da4672cd994f57ccc49"
+  },
+  "id": "F1wH8DTXmsrYqdjw",
+  "tags": []
+}
